@@ -1,0 +1,12 @@
+[contract]
+id = "robonix/skill/visual_object/inspect_chest"
+version = "1"
+kind = "skill"
+idl = "visual_object/srv/InspectChest.srv"
+description = "Approach a visually detected chest (scanning automatically if visual_id is omitted), aim at it, open it, and return all items and counts inside."
+
+[mode]
+type = "rpc"
+
+[semantics]
+user_invocable = true

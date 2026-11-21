@@ -1,0 +1,8 @@
+string label
+bool sweep
+float64 max_distance_m
+---
+bool ok
+uint32 count
+string objects_json
+string detail

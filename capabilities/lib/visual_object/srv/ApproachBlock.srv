@@ -1,0 +1,10 @@
+string visual_id
+string label
+---
+bool ok
+string visual_id
+float64 odom_x
+float64 odom_y
+float64 odom_z
+float64 distance_m
+string detail

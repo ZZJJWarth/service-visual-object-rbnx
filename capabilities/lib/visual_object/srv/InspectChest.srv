@@ -1,0 +1,8 @@
+string visual_id
+---
+bool ok
+string visual_id
+string container_type
+uint32 slot_count
+string items_json
+string detail

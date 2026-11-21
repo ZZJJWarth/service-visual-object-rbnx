@@ -1,0 +1,12 @@
+string visual_id
+string item
+uint32 count
+---
+bool ok
+string visual_id
+uint32 transferred_count
+uint32 player_count_before
+uint32 player_count_after
+uint32 container_count_before
+uint32 container_count_after
+string detail

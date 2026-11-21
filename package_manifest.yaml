@@ -1,0 +1,31 @@
+manifestVersion: 1
+
+package:
+  name: robonix.service.visual_object
+  version: 0.1.0
+  description: Pure-sensor extensible RGB-D block detection, 3D localization, local approach, and container interaction service.
+  tags: [service, vision, rgbd, object-detection, container, chest, webui]
+  maintainers:
+    - ZZJJWarth <jzeng25@stu.pku.edu.cn>
+  license: MulanPSL-2.0
+
+build: bash scripts/build.sh
+start: bash scripts/start.sh
+stop: bash scripts/stop.sh
+
+capabilities:
+  - name: robonix/skill/visual_object/scan
+    transport: mcp
+    path: capabilities/scan.v1.toml
+  - name: robonix/skill/visual_object/approach
+    transport: mcp
+    path: capabilities/approach.v1.toml
+  - name: robonix/skill/visual_object/inspect_chest
+    transport: mcp
+    path: capabilities/inspect_chest.v1.toml
+  - name: robonix/skill/visual_object/withdraw_from_chest
+    transport: mcp
+    path: capabilities/withdraw_from_chest.v1.toml
+  - name: robonix/skill/visual_object/deposit_to_chest
+    transport: mcp
+    path: capabilities/deposit_to_chest.v1.toml

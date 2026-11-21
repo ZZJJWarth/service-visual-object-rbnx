@@ -1,0 +1,74 @@
+# Declarative registry of visually detectable Minecraft blocks.
+# To support a new block class:
+#   1) Add a spec entry below (with 3D physical size bounds & interaction range);
+#   2) Either supply an ONNX model trained with that class name, OR register a
+#      lightweight ClassicBlockDetector plugin for the label.
+version: 1
+blocks:
+  chest:
+    display_name: "箱子"
+    mc_blocks:
+      - minecraft:chest
+      - minecraft:trapped_chest
+    backend: auto          # auto | classic | onnx
+    onnx_class_id: 0
+    min_width_m: 0.45
+    max_width_m: 2.35      # covers single (0.875m) and double chest (1.875m)
+    min_height_m: 0.42
+    max_height_m: 1.30
+    inward_push_m: 0.38    # push surface hit deeper along ray into block center
+    approach_min_m: 1.35
+    approach_max_m: 2.35
+    interactable: true
+    container: true
+
+  crafting_table:
+    display_name: "工作台"
+    mc_blocks:
+      - minecraft:crafting_table
+    backend: onnx
+    onnx_class_id: 1
+    min_width_m: 0.55
+    max_width_m: 1.35
+    min_height_m: 0.55
+    max_height_m: 1.35
+    inward_push_m: 0.42
+    approach_min_m: 1.35
+    approach_max_m: 2.35
+    interactable: true
+    container: false
+
+  furnace:
+    display_name: "熔炉"
+    mc_blocks:
+      - minecraft:furnace
+      - minecraft:blast_furnace
+      - minecraft:smoker
+    backend: onnx
+    onnx_class_id: 2
+    min_width_m: 0.55
+    max_width_m: 1.35
+    min_height_m: 0.55
+    max_height_m: 1.35
+    inward_push_m: 0.42
+    approach_min_m: 1.35
+    approach_max_m: 2.35
+    interactable: true
+    container: true
+
+  cauldron:
+    display_name: "炼药锅"
+    mc_blocks:
+      - minecraft:cauldron
+      - minecraft:water_cauldron
+    backend: onnx
+    onnx_class_id: 3
+    min_width_m: 0.55
+    max_width_m: 1.35
+    min_height_m: 0.55
+    max_height_m: 1.35
+    inward_push_m: 0.42
+    approach_min_m: 1.35
+    approach_max_m: 2.35
+    interactable: true
+    container: false

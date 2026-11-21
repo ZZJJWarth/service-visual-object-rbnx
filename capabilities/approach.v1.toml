@@ -1,0 +1,12 @@
+[contract]
+id = "robonix/skill/visual_object/approach"
+version = "1"
+kind = "skill"
+idl = "visual_object/srv/ApproachBlock.srv"
+description = "Approach a visually detected block using the rolling local costmap and Nav2, then refine its 3D position at close range."
+
+[mode]
+type = "rpc"
+
+[semantics]
+user_invocable = true

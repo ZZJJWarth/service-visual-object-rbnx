@@ -1,0 +1,12 @@
+[contract]
+id = "robonix/skill/visual_object/scan"
+version = "1"
+kind = "skill"
+idl = "visual_object/srv/ScanBlocks.srv"
+description = "Pure-sensor RGB-D scan for registered Minecraft blocks (e.g. label='chest'). When sweep=true, performs a gentle 360-degree turn to scan the room and returns confirmed 3D detections with visual_id."
+
+[mode]
+type = "rpc"
+
+[semantics]
+user_invocable = true

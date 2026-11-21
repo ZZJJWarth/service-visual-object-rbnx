@@ -1,0 +1,12 @@
+[contract]
+id = "robonix/skill/visual_object/deposit_to_chest"
+version = "1"
+kind = "skill"
+idl = "visual_object/srv/DepositToChest.srv"
+description = "Approach a visually detected chest, aim at it, and deposit an exact count of a registered item from the robot's inventory into the chest."
+
+[mode]
+type = "rpc"
+
+[semantics]
+user_invocable = true

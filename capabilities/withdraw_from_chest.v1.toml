@@ -1,0 +1,12 @@
+[contract]
+id = "robonix/skill/visual_object/withdraw_from_chest"
+version = "1"
+kind = "skill"
+idl = "visual_object/srv/WithdrawFromChest.srv"
+description = "Approach a visually detected chest, aim at it, and withdraw an exact count of a registered item (e.g. 'minecraft:bread') into the robot's inventory."
+
+[mode]
+type = "rpc"
+
+[semantics]
+user_invocable = true
