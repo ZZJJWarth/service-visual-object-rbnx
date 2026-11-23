@@ -72,3 +72,30 @@ blocks:
     approach_max_m: 2.35
     interactable: true
     container: false
+
+  door:
+    display_name: "门"
+    mc_blocks:
+      - minecraft:oak_door
+      - minecraft:spruce_door
+      - minecraft:birch_door
+      - minecraft:jungle_door
+      - minecraft:acacia_door
+      - minecraft:dark_oak_door
+      - minecraft:mangrove_door
+      - minecraft:cherry_door
+      - minecraft:bamboo_door
+      - minecraft:crimson_door
+      - minecraft:warped_door
+      - minecraft:iron_door
+    backend: auto
+    onnx_class_id: 4
+    min_width_m: 0.65
+    max_width_m: 2.30      # single (1.0m) or double (2.0m) closed door
+    min_height_m: 1.45
+    max_height_m: 2.35
+    inward_push_m: 0.12
+    approach_min_m: 1.15
+    approach_max_m: 2.00
+    interactable: true
+    container: false

@@ -26,6 +26,8 @@ TOP_LEVEL_KEYS = {
     "min_confidence",
     "max_detect_range_m",
     "min_track_hits",
+    "detection_enabled",
+    "enabled_labels",
     "webui_enabled",
     "webui_host",
     "webui_port",
@@ -52,6 +54,8 @@ class VisualObjectConfig:
     min_confidence: float = 0.45
     max_detect_range_m: float = 10.0
     min_track_hits: int = 2
+    detection_enabled: bool = True
+    enabled_labels: tuple[str, ...] = ()
     webui_enabled: bool = True
     webui_host: str = "127.0.0.1"
     webui_port: int = 8094
@@ -115,6 +119,14 @@ def from_config(config: dict[str, Any], package_root: Path) -> VisualObjectConfi
     else:
         model_path = ""
 
+    raw_labels = config.get("enabled_labels")
+    if raw_labels is None:
+        enabled_labels: tuple[str, ...] = ()
+    elif isinstance(raw_labels, (list, tuple)):
+        enabled_labels = tuple(str(x).strip().lower() for x in raw_labels if str(x).strip())
+    else:
+        raise ConfigError("enabled_labels must be a list of label strings")
+
     return VisualObjectConfig(
         rgb_topic=_topic(config.get("rgb_topic", "/minecraft/camera/rgb"), "rgb_topic"),
         depth_topic=_topic(config.get("depth_topic", "/minecraft/camera/depth"), "depth_topic"),
@@ -133,6 +145,8 @@ def from_config(config: dict[str, Any], package_root: Path) -> VisualObjectConfi
         min_confidence=_num(config.get("min_confidence", 0.45), "min_confidence", 0.1, 0.99),
         max_detect_range_m=_num(config.get("max_detect_range_m", 10.0), "max_detect_range_m", 2.0, 20.0),
         min_track_hits=_int(config.get("min_track_hits", 2), "min_track_hits", 1, 10),
+        detection_enabled=_bool(config.get("detection_enabled", True), "detection_enabled"),
+        enabled_labels=enabled_labels,
         webui_enabled=_bool(config.get("webui_enabled", True), "webui_enabled"),
         webui_host=_str(config.get("webui_host", "127.0.0.1"), "webui_host"),
         webui_port=_int(config.get("webui_port", 8094), "webui_port", 0, 65535),

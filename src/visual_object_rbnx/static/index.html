@@ -70,6 +70,8 @@
     <span class="pill" id="odomPill">Odom: --</span>
     <span class="pill" id="framePill">RGB-D 帧: 0</span>
     <span class="pill" id="busyPill">状态: 空闲</span>
+    <button id="btnToggleDetect" class="ok" type="button" style="padding:3px 10px;font-size:12px;">🟢 视觉识别: 已开启</button>
+    <span id="labelToggles" style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;"></span>
   </div>
 
   <div class="grid">
@@ -175,13 +177,31 @@
           `RGB-D 帧: ${d.frames_processed || 0} · 当前2D: ${d.last_2d_count || 0} · 3D: ${d.last_3d_count || 0}`;
         document.getElementById('busyPill').textContent = d.busy ? `执行中: ${d.busy_detail || '...'}` : '状态: 空闲';
 
-        // Populate label dropdown once
+        // Master switch & per-label checkboxes
+        const detOn = d.detection_enabled !== false;
+        const enabledSet = new Set(d.enabled_labels || []);
+        const btnTog = document.getElementById('btnToggleDetect');
+        btnTog.dataset.enabled = detOn ? '1' : '0';
+        btnTog.textContent = detOn ? '🟢 视觉识别: 已开启' : '⏸ 视觉识别: 已关闭';
+        btnTog.className = detOn ? 'ok' : 'danger';
+
+        // Populate label dropdown & per-class toggle checkboxes
         const sel = document.getElementById('scanLabel');
         const specs = d.specs || [];
         if (specs.length && sel.options.length !== specs.length) {
           const prev = sel.value;
           sel.innerHTML = specs.map(s => `<option value="${s.label}">${s.display_name} (${s.label})</option>`).join('');
           if (prev) sel.value = prev;
+        }
+        const ltWrap = document.getElementById('labelToggles');
+        const ltKey = `${detOn}|` + specs.map(s => `${s.label}:${enabledSet.has(s.label) ? 1 : 0}`).join(',');
+        if (ltWrap && ltWrap.dataset.key !== ltKey) {
+          ltWrap.dataset.key = ltKey;
+          ltWrap.innerHTML = specs.map(s => {
+            const chk = enabledSet.has(s.label) ? 'checked' : '';
+            return `<label class="pill" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;">` +
+              `<input type="checkbox" ${chk} onchange="toggleLabel('${s.label}', this.checked)" />${s.display_name}(${s.label})</label>`;
+          }).join('');
         }
 
         const objs = d.objects || [];
@@ -219,6 +239,18 @@
       if (res.data.items) renderChestItems(res.data.items);
       pollState();
     };
+
+    window.toggleLabel = async (label, enabled) => {
+      const res = await postJson('/api/toggle', { label, enabled });
+      showToast(res.ok, res.data.detail || '已更新类别开关');
+      pollState();
+    };
+    document.getElementById('btnToggleDetect').addEventListener('click', async () => {
+      const cur = document.getElementById('btnToggleDetect').dataset.enabled === '1';
+      const res = await postJson('/api/toggle', { detection_enabled: !cur });
+      showToast(res.ok, res.data.detail || '已切换视觉识别开关');
+      pollState();
+    });
 
     document.getElementById('btnScan').addEventListener('click', async () => {
       const label = document.getElementById('scanLabel').value || 'chest';

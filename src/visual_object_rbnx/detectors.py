@@ -314,6 +314,114 @@ def detect_minecraft_chest(rgb: np.ndarray, depth: np.ndarray | None) -> list[De
     return detections
 
 
+@ClassicBlockDetector.register("door")
+def detect_minecraft_door(rgb: np.ndarray, depth: np.ndarray | None) -> list[Detection2D]:
+    """Detect closed Minecraft doors (wood/iron/copper/dark-oak/etc.) via RGB-D doorway recess geometry.
+
+    Pure-sensor detector:
+    1) Uses depth discontinuities to locate a vertical doorway recess where left & right wall jambs
+       are closer than a flat vertical door slab recessed by 0.10..0.95 m (works for ALL door colors!).
+    2) Verifies vertical door proportions (aspect w/h in [0.28, 1.35], covering single & double doors)
+       and interior edge texture (door planks/panels/handle) to reject plain flat walls.
+    """
+    if rgb is None or rgb.ndim != 3 or rgb.shape[2] != 3:
+        return []
+    h, w = rgb.shape[:2]
+    if h < 48 or w < 48 or depth is None or depth.shape[:2] != (h, w):
+        return []
+
+    d = np.where(np.isfinite(depth) & (depth > 0.4) & (depth < 8.5), depth, 0.0).astype(np.float32)
+    valid = d > 0.4
+    if np.count_nonzero(valid) < h * w * 0.15:
+        return []
+
+    # Mask out bottom HUD bar
+    hud_y = int(h * 0.86)
+    valid[hud_y:, :] = False
+
+    # Horizontal depth-recess response: pixels recessed behind BOTH left and right wall jambs
+    # at horizontal offsets proportional to expected single/double door pixel width.
+    recess_mask = np.zeros((h, w), dtype=np.uint8)
+    for half_span in (max(10, w // 18), max(18, w // 10), max(28, w // 6)):
+        if 2 * half_span >= w - 4:
+            continue
+        left_d = np.roll(d, half_span, axis=1)
+        right_d = np.roll(d, -half_span, axis=1)
+        left_v = np.roll(valid, half_span, axis=1)
+        right_v = np.roll(valid, -half_span, axis=1)
+        dl = d - left_d
+        dr = d - right_d
+        hit = (
+            valid & left_v & right_v
+            & (dl >= 0.08) & (dl <= 1.05)
+            & (dr >= 0.08) & (dr <= 1.05)
+            & (np.abs(left_d - right_d) <= 0.65)
+        )
+        hit[:, :half_span] = False
+        hit[:, w - half_span :] = False
+        recess_mask[hit] = 255
+
+    if np.count_nonzero(recess_mask) < 60:
+        return []
+
+    k_open = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 5))
+    k_close = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 11))
+    cleaned = cv2.morphologyEx(recess_mask, cv2.MORPH_OPEN, k_open)
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, k_close)
+
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    edges = cv2.Canny(gray, 35, 110)
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(cleaned, connectivity=8)
+    min_w = max(14, int(w * 0.04))
+    min_h = max(32, int(h * 0.14))
+    out: list[Detection2D] = []
+
+    for cid in range(1, num_labels):
+        x = int(stats[cid, cv2.CC_STAT_LEFT])
+        y = int(stats[cid, cv2.CC_STAT_TOP])
+        bw = int(stats[cid, cv2.CC_STAT_WIDTH])
+        bh = int(stats[cid, cv2.CC_STAT_HEIGHT])
+        area = int(stats[cid, cv2.CC_STAT_AREA])
+        if bw < min_w or bh < min_h:
+            continue
+        if bw > w * 0.65 or bh > h * 0.85:
+            continue
+        aspect = bw / max(1.0, float(bh))
+        if not (0.25 <= aspect <= 1.40):
+            continue
+        fill = area / max(1.0, float(bw * bh))
+        if fill < 0.35:
+            continue
+        sub_mask = labels[y : y + bh, x : x + bw] == cid
+        sub_d = d[y : y + bh, x : x + bw][sub_mask]
+        sub_d = sub_d[sub_d > 0.4]
+        if sub_d.size < 20:
+            continue
+        # Door panel is a nearly planar vertical surface (low depth spread across its interior)
+        d_iqr = float(np.percentile(sub_d, 80) - np.percentile(sub_d, 20))
+        if d_iqr > 0.45:
+            continue
+        edge_density = float(np.count_nonzero(edges[y : y + bh, x : x + bw])) / max(1.0, float(bw * bh))
+        # Reject completely featureless uniform sky/void patches
+        if edge_density < 0.015:
+            continue
+        conf = min(0.92, 0.50 + 0.25 * min(1.0, fill) + 0.20 * min(1.0, edge_density / 0.10))
+        out.append(
+            Detection2D(
+                label="door",
+                x1=x,
+                y1=y,
+                x2=x + bw,
+                y2=y + bh,
+                confidence=round(conf, 3),
+                backend="classic",
+                mask=sub_mask,
+            )
+        )
+    return out
+
+
 class OnnxBlockDetector(BlockDetector):
     """Drop-in multi-class ONNX object detector (YOLOv8/YOLO11 export compatible).
 

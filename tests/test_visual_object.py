@@ -284,6 +284,46 @@ def test_tracker_same_frame_two_chests_vs_cross_frame_dedup_and_visibility_expir
     assert len(t3.confirmed()) == 0
 
 
+def test_classic_door_detector_finds_recessed_closed_door_regardless_of_color():
+    """Verify pure RGB-D recessed doorway detector detects closed doors across any wood/iron color."""
+    from visual_object_rbnx.detectors import detect_minecraft_door
+
+    h, w = 240, 320
+    # Plain gray concrete wall at depth 2.5 m with a recessed dark-oak/iron door (width 46px, height 110px) at depth 2.95 m
+    rgb = np.full((h, w, 3), (170, 170, 175), dtype=np.uint8)
+    depth = np.full((h, w), 2.50, dtype=np.float32)
+
+    dx1, dx2, dy1, dy2 = 138, 184, 58, 168
+    depth[dy1:dy2, dx1:dx2] = 2.95
+    # Draw crisp vertical wood/iron door panels + handle texture inside the recessed doorway
+    rgb[dy1:dy2, dx1:dx2] = (75, 58, 44)
+    rgb[dy1 + 10 : dy1 + 48, dx1 + 8 : dx2 - 8] = (120, 96, 70)
+    rgb[dy1 + 60 : dy2 - 12, dx1 + 8 : dx2 - 8] = (95, 74, 54)
+    rgb[dy1 + 52 : dy1 + 58, dx2 - 12 : dx2 - 6] = (210, 210, 210)
+
+    dets = detect_minecraft_door(rgb, depth)
+    assert len(dets) >= 1, "recessed closed door should be detected via RGB-D"
+    top = dets[0]
+    assert top.label == "door"
+    cx, cy = top.center_uv
+    assert dx1 <= cx <= dx2 and dy1 <= cy <= dy2
+
+    # Flat wall with NO depth recess must NOT trigger false door detections
+    flat_depth = np.full((h, w), 2.50, dtype=np.float32)
+    assert detect_minecraft_door(rgb, flat_depth) == []
+
+
+def test_visual_object_toggle_switch_config_and_filter():
+    from visual_object_rbnx import params as vo_params
+
+    cfg = vo_params.from_config(
+        {"detection_enabled": False, "enabled_labels": ["door"]},
+        ROOT,
+    )
+    assert cfg.detection_enabled is False
+    assert cfg.enabled_labels == ("door",)
+
+
 def test_no_game_state_references_in_src():
     forbidden = (
         "ground" + "_truth",

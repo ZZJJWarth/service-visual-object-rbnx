@@ -99,6 +99,12 @@ class VisualObjectRuntime:
         self._busy: bool = False
         self._busy_detail: str = ""
         self._last_inspect: dict[str, Any] | None = None
+        self._detection_enabled: bool = bool(cfg.detection_enabled)
+        self._enabled_labels: set[str] = (
+            {lbl for lbl in cfg.enabled_labels if self.registry.get(lbl) is not None}
+            if cfg.enabled_labels
+            else set(self.registry.labels())
+        )
 
         self._stop = threading.Event()
         self._ros_node: Any = None
@@ -283,6 +289,8 @@ class VisualObjectRuntime:
     ) -> list[Observation3D]:
         """Run 2D detection + Depth 3D backprojection + multi-frame tracking on one RGB frame."""
         with self.lock:
+            det_enabled = self._detection_enabled
+            active_labels = set(self._enabled_labels)
             intr = self._intrinsics
             T_odom_base = self._T_odom_base
             T_base_cam = self._T_base_cam
@@ -292,7 +300,16 @@ class VisualObjectRuntime:
                 if (time.monotonic() - d_t) <= 1.5:
                     depth = d_arr
 
-        dets_2d = self.pipeline.detect(rgb, depth)
+        if not det_enabled or not active_labels:
+            preview = self._render_preview(rgb, [], [])
+            with self.lock:
+                self._last_2d_count = 0
+                self._last_3d_count = 0
+                if preview is not None:
+                    self._latest_rgb_preview = preview
+            return []
+
+        dets_2d = self.pipeline.detect(rgb, depth, target_labels=active_labels)
         obs_3d: list[Observation3D] = []
         if depth is not None and intr is not None and T_odom_base is not None:
             T_odom_cam = T_odom_base.compose(T_base_cam)
@@ -720,6 +737,41 @@ class VisualObjectRuntime:
                 count=int(b.get("count", 1)),
             ),
             "POST:api/clear": self._api_clear,
+            "POST:api/toggle": self._api_toggle,
+        }
+
+    def _api_toggle(self, body: dict[str, Any]) -> dict[str, Any]:
+        with self.lock:
+            if "detection_enabled" in body and body["detection_enabled"] is not None:
+                self._detection_enabled = bool(body["detection_enabled"])
+            if "enabled_labels" in body and isinstance(body["enabled_labels"], list):
+                self._enabled_labels = {
+                    str(x).strip().lower()
+                    for x in body["enabled_labels"]
+                    if self.registry.get(str(x).strip().lower()) is not None
+                }
+            if "label" in body and body["label"]:
+                lbl = str(body["label"]).strip().lower()
+                if self.registry.get(lbl) is not None:
+                    if bool(body.get("enabled", True)):
+                        self._enabled_labels.add(lbl)
+                    else:
+                        self._enabled_labels.discard(lbl)
+                        self.tracker.clear(lbl)
+            if not self._detection_enabled:
+                self.tracker.clear("")
+            det_on = self._detection_enabled
+            labels = sorted(self._enabled_labels)
+        detail = (
+            f"视觉识别已开启（启用类别: {', '.join(labels) if labels else '无'}）"
+            if det_on
+            else "视觉识别已关闭（暂停检测与 3D 追踪）"
+        )
+        return {
+            "ok": True,
+            "detection_enabled": det_on,
+            "enabled_labels": labels,
+            "detail": detail,
         }
 
     def _api_state(self, _: dict[str, Any]) -> dict[str, Any]:
@@ -738,6 +790,8 @@ class VisualObjectRuntime:
             return {
                 "ok": True,
                 "odom": odom,
+                "detection_enabled": self._detection_enabled,
+                "enabled_labels": sorted(self._enabled_labels),
                 "detector": self.pipeline.status(),
                 "specs": [s.to_dict() for s in self.registry.all_specs()],
                 "objects": [t.to_dict(robot_xy=rxy) for t in self.tracker.confirmed(robot_xy=rxy, robot_z=rz)],
